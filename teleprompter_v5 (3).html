@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Teleprompter PRO v5</title>
+
+<style>
+html,body{margin:0;height:100%;background:#000;color:#fff;font-family:Arial,sans-serif;overflow:hidden}
+#editor{position:absolute;inset:0;display:flex;flex-direction:column;padding:12px;background:#222}
+textarea{flex:1;background:#111;color:#fff;font-size:20px}
+button{font-size:20px;margin-top:8px}
+#view{display:none;position:absolute;inset:0;overflow:hidden}
+#content{position:absolute;left:8%;width:84%;top:100vh}
+p{font-size:68px;line-height:1.35;font-weight:bold;margin:0 0 60px}
+.attitude-marker{font-size:150px;line-height:1;text-align:center;margin:0 0 60px}
+.guide{position:absolute;left:0;right:0;top:35%;border-top:2px solid #00ff00}
+#hud{position:fixed;top:10px;right:10px;background:#0008;padding:6px}
+#help{display:none;position:fixed;inset:8%;background:#111d;color:#fff;padding:28px;overflow:auto;border:1px solid #888;font-size:28px;line-height:1.5}
+#attitudePicker{display:none;position:fixed;inset:15%;background:#111e;color:#fff;padding:24px;overflow:auto;border:1px solid #888;z-index:20}
+#attitudePicker h2{margin-top:0}
+#attitudePicker .grid{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
+#attitudePicker button{font-size:40px;padding:14px 20px;background:#222;color:#fff;border:1px solid #666;border-radius:10px;cursor:pointer}
+#attitudePicker button span{display:block;font-size:16px;margin-top:4px}
+input,textarea,button,select{font-family:inherit}
+</style>
+
+</head>
+
+<body>
+
+<div id="editor">
+<textarea id="txt">Pega aquí el texto.
+
+Segundo párrafo.</textarea>
+<button onclick="start()">Iniciar</button>
+</div>
+
+<div id="view">
+
+<div class="guide" id="guide"></div>
+
+<div id="hud"></div>
+
+<div id="content"></div>
+
+<div id="help">
+
+<div style="display:flex;justify-content:space-between;align-items:center">
+<h1 style="margin:0">Ayuda (F1)</h1>
+<div>
+<button onclick="helpSize=Math.max(16,helpSize-2);help.style.fontSize=helpSize+'px'">A-</button>
+<button onclick="helpSize+=2;help.style.fontSize=helpSize+'px'">A+</button>
+</div>
+</div>
+
+<pre>
+↑ más velocidad
+↓ menos velocidad
+← retroceso manual
+→ avance manual
+ESPACIO pausa/reanuda
++/- tamaño fuente
+[/] ancho columna
+M espejo horizontal
+V espejo vertical
+F pantalla completa
+ESC editor
+F1 ayuda
+
+CTRL+V = Ghost Insert
+CTRL+E = Actitud del próximo párrafo (también disponible en la pantalla inicial, en el cursor)
+
+En pantalla táctil: deslizar el dedo hacia arriba/abajo ajusta la velocidad igual que ↑ ↓
+</pre>
+
+<hr>
+
+<h2>Línea guía</h2>
+
+<label>
+Grosor
+<input type="range" min="1" max="10" value="2"
+oninput="guide.style.borderTopWidth=this.value+'px'">
+</label>
+
+<label>
+Color
+<input type="color" value="#00ff00"
+oninput="guide.style.borderTopColor=this.value">
+</label>
+
+<hr>
+
+<h2>Agregar párrafo</h2>
+
+<label>
+Actitud
+<select id="liveAttitude">
+<option value="😀">Alegre 😀</option>
+<option value="🙂">Positivo 🙂</option>
+<option value="😐">Neutral 😐</option>
+<option value="🤔">Reflexivo 🤔</option>
+<option value="😎">Seguro 😎</option>
+<option value="😢">Triste 😢</option>
+<option value="😡">Enérgico 😡</option>
+<option value="😱">Impactante 😱</option>
+<option value="😂">Humor 😂</option>
+<option value="🥳">Celebración 🥳</option>
+<option value="🫡">Institucional 🫡</option>
+<option value="❤️">Emotivo ❤️</option>
+</select>
+</label>
+
+<textarea id="liveParagraph" style="width:100%;height:120px;font-size:18px;"></textarea>
+
+<br>
+
+<button onclick="addParagraph()">Agregar al final</button>
+
+<hr>
+
+<h2>Insertar después del ID</h2>
+
+ID:
+
+<input
+id="insertID"
+type="number"
+style="width:120px;font-size:24px">
+
+<br><br>
+
+<label>
+Actitud
+<select id="insertAttitude">
+<option value="😀">Alegre 😀</option>
+<option value="🙂">Positivo 🙂</option>
+<option value="😐">Neutral 😐</option>
+<option value="🤔">Reflexivo 🤔</option>
+<option value="😎">Seguro 😎</option>
+<option value="😢">Triste 😢</option>
+<option value="😡">Enérgico 😡</option>
+<option value="😱">Impactante 😱</option>
+<option value="😂">Humor 😂</option>
+<option value="🥳">Celebración 🥳</option>
+<option value="🫡">Institucional 🫡</option>
+<option value="❤️">Emotivo ❤️</option>
+</select>
+</label>
+
+<br><br>
+
+<textarea
+id="insertText"
+style="width:100%;height:120px;font-size:18px;"></textarea>
+
+<br>
+
+<button onclick="insertAfterID()">
+Insertar
+</button>
+
+</div>
+
+</div>
+
+<div id="attitudePicker">
+
+<h2 id="attitudePickerTitle">Actitud</h2>
+
+<div class="grid">
+<button onclick="applyAttitude('😀')">😀<span>Alegre</span></button>
+<button onclick="applyAttitude('🙂')">🙂<span>Positivo</span></button>
+<button onclick="applyAttitude('😐')">😐<span>Neutral</span></button>
+<button onclick="applyAttitude('🤔')">🤔<span>Reflexivo</span></button>
+<button onclick="applyAttitude('😎')">😎<span>Seguro</span></button>
+<button onclick="applyAttitude('😢')">😢<span>Triste</span></button>
+<button onclick="applyAttitude('😡')">😡<span>Enérgico</span></button>
+<button onclick="applyAttitude('😱')">😱<span>Impactante</span></button>
+<button onclick="applyAttitude('😂')">😂<span>Humor</span></button>
+<button onclick="applyAttitude('🥳')">🥳<span>Celebración</span></button>
+<button onclick="applyAttitude('🫡')">🫡<span>Institucional</span></button>
+<button onclick="applyAttitude('❤️')">❤️<span>Emotivo</span></button>
+</div>
+
+</div>
+
+<script>
+
+let helpSize=28;
+
+let speed=0;
+let y=innerHeight;
+let paused=false;
+let font=68;
+let width=84;
+let mirrorX=1;
+let mirrorY=1;
+
+const colors=[
+'#fff',
+'#ff8',
+'#fff',
+'#8df',
+'#fff',
+'#afa',
+'#fff',
+'#fbd'
+];
+
+const curve=[
+0,1,2,3,4,5,6,7,8,10,12,15,18,22,27,33,
+40,48,58,70,84,100,120,145,175,210,250,
+300,360,430,510,600
+];
+
+const c=document.getElementById("content");
+const hud=document.getElementById("hud");
+
+let idx=0;
+let currentParagraph=0;
+
+function save(){
+localStorage.tp=txt.value;
+}
+
+txt.oninput=save;
+txt.value=localStorage.tp||txt.value;
+
+function getParagraphs(){
+return [...c.querySelectorAll('p')];
+}
+
+function buildParagraph(text){
+
+let p=document.createElement("p");
+
+p.textContent=text;
+
+let n=getParagraphs().length;
+
+p.dataset.id=n;
+
+p.style.color=colors[n%colors.length];
+
+p.style.fontSize=font+"px";
+
+return p;
+
+}
+
+function buildAttitudeMarker(emoji){
+
+let d=document.createElement("div");
+
+d.className="attitude-marker";
+
+d.textContent=emoji;
+
+return d;
+
+}
+
+let attitudeTarget=null;
+let pickerMode="view";
+let editorSelStart=0;
+let editorSelEnd=0;
+
+function openAttitudePickerForView(){
+
+let paragraphs=getParagraphs();
+
+let next=currentParagraph+1;
+
+if(next>=paragraphs.length)
+next=currentParagraph;
+
+attitudeTarget=next;
+
+pickerMode="view";
+
+attitudePickerTitle.textContent="Actitud — párrafo "+attitudeTarget;
+
+attitudePicker.style.display="block";
+
+}
+
+function openAttitudePickerForEditor(){
+
+editorSelStart=txt.selectionStart;
+editorSelEnd=txt.selectionEnd;
+
+pickerMode="editor";
+
+attitudePickerTitle.textContent="Insertar emoji en el libreto";
+
+attitudePicker.style.display="block";
+
+}
+
+function closeAttitudePicker(){
+
+attitudePicker.style.display="none";
+
+}
+
+function applyAttitude(emoji){
+
+if(pickerMode=="editor"){
+
+let before=txt.value.slice(0,editorSelStart);
+let after=txt.value.slice(editorSelEnd);
+
+txt.value=before+emoji+after;
+
+save();
+
+let pos=editorSelStart+emoji.length;
+
+txt.focus();
+txt.setSelectionRange(pos,pos);
+
+}else{
+
+let paragraphs=getParagraphs();
+
+let p=paragraphs[attitudeTarget];
+
+if(p){
+
+let prev=p.previousElementSibling;
+
+if(prev&&prev.classList.contains("attitude-marker")){
+
+prev.textContent=emoji;
+
+}else{
+
+c.insertBefore(buildAttitudeMarker(emoji),p);
+
+}
+
+}
+
+}
+
+closeAttitudePicker();
+
+}
+
+txt.addEventListener("keydown",e=>{
+
+if(e.ctrlKey&&(e.key=="e"||e.key=="E")){
+
+e.preventDefault();
+
+openAttitudePickerForEditor();
+
+}
+
+});
+
+document.addEventListener("keydown",e=>{
+
+if(view.style.display=="block")return;
+
+if(attitudePicker.style.display=="block"&&e.key=="Escape"){
+
+e.preventDefault();
+
+closeAttitudePicker();
+
+}
+
+});
+
+const attitudeEmojis=["😀","🙂","😐","🤔","😎","😢","😡","😱","😂","🥳","🫡","❤️"];
+
+function start(){
+
+c.innerHTML="";
+
+txt.value.split(/\n\s*\n/).forEach(t=>{
+
+let trimmed=t.trim();
+
+if(attitudeEmojis.includes(trimmed)){
+
+c.appendChild(buildAttitudeMarker(trimmed));
+
+}else{
+
+c.appendChild(buildParagraph(t));
+
+}
+
+});
+
+editor.style.display="none";
+view.style.display="block";
+
+y=innerHeight;
+
+loop();
+
+}
+
+function detectCurrent(){
+
+let guideY=window.innerHeight*0.35;
+
+let best=999999;
+
+getParagraphs().forEach((p,i)=>{
+
+let r=p.getBoundingClientRect();
+
+let d=Math.abs(r.top-guideY);
+
+if(d<best){
+
+best=d;
+
+currentParagraph=i;
+
+}
+
+});
+
+}
+
+function loop(){
+
+requestAnimationFrame(loop);
+
+if(!paused)
+y-=speed/60;
+
+const total=c.offsetHeight;
+
+const gap=innerHeight;
+
+if(total>0 && y<-(total+gap))
+y=innerHeight;
+
+c.style.transform=
+`translateY(${y}px) scale(${mirrorX},${mirrorY})`;
+
+c.style.width=width+"%";
+
+detectCurrent();
+
+hud.textContent=
+"VEL "+speed+
+"   ID "+currentParagraph;
+
+}
+
+loop();
+
+let ml=false;
+let mr=false;
+
+setInterval(()=>{
+
+if(ml)y+=8;
+
+if(mr)y-=8;
+
+},16);
+
+function renumber(){
+
+getParagraphs().forEach((p,i)=>{
+
+p.dataset.id=i;
+
+});
+
+}
+
+function insertAfter(index,text,emoji){
+
+if(index<0)index=0;
+
+let list=text.split(/\n\s*\n/);
+
+let paragraphs=getParagraphs();
+
+let afterNode=paragraphs[index];
+
+list.forEach(t=>{
+
+if(emoji){
+
+let marker=buildAttitudeMarker(emoji);
+
+if(afterNode&&afterNode.nextSibling){
+
+c.insertBefore(marker,afterNode.nextSibling);
+
+}else{
+
+c.appendChild(marker);
+
+}
+
+afterNode=marker;
+
+}
+
+let p=buildParagraph(t);
+
+if(afterNode&&afterNode.nextSibling){
+
+c.insertBefore(p,afterNode.nextSibling);
+
+}else{
+
+c.appendChild(p);
+
+}
+
+afterNode=p;
+
+});
+
+renumber();
+
+}
+
+function addParagraph(){
+
+let t=liveParagraph.value.trim();
+
+if(!t)return;
+
+let emoji=liveAttitude.value;
+
+let paragraphs=getParagraphs();
+
+insertAfter(paragraphs.length-1,t,emoji);
+
+liveParagraph.value="";
+
+}
+
+function insertAfterID(){
+
+let id=parseInt(insertID.value);
+
+if(isNaN(id))return;
+
+let t=insertText.value.trim();
+
+if(!t)return;
+
+let emoji=insertAttitude.value;
+
+insertAfter(id,t,emoji);
+
+insertText.value="";
+
+}
+
+window.addEventListener("paste",e=>{
+
+if(view.style.display!="block")return;
+
+if(document.activeElement.tagName==="TEXTAREA")return;
+if(document.activeElement.tagName==="INPUT")return;
+if(document.activeElement.tagName==="SELECT")return;
+
+e.preventDefault();
+
+let txt=e.clipboardData.getData("text").trim();
+
+if(!txt)return;
+
+insertAfter(currentParagraph,txt);
+
+});
+
+const isTouchDevice=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+
+let touchStartY=null;
+
+const SWIPE_STEP=40;
+
+function pointBlockedByPanel(target){
+
+if(help.style.display=="block"&&help.contains(target))return true;
+
+if(attitudePicker.style.display=="block"&&attitudePicker.contains(target))return true;
+
+return false;
+
+}
+
+view.addEventListener("touchstart",e=>{
+
+if(pointBlockedByPanel(e.target))return;
+
+touchStartY=e.touches[0].clientY;
+
+},{passive:true});
+
+view.addEventListener("touchmove",e=>{
+
+if(touchStartY===null)return;
+
+if(pointBlockedByPanel(e.target))return;
+
+let currentY=e.touches[0].clientY;
+
+let delta=touchStartY-currentY;
+
+while(Math.abs(delta)>=SWIPE_STEP){
+
+if(delta>0){
+
+if(idx<curve.length-1)idx++;
+
+touchStartY-=SWIPE_STEP;
+
+delta-=SWIPE_STEP;
+
+}else{
+
+if(idx>0)idx--;
+
+touchStartY+=SWIPE_STEP;
+
+delta+=SWIPE_STEP;
+
+}
+
+speed=curve[idx];
+
+}
+
+},{passive:true});
+
+view.addEventListener("touchend",()=>{
+
+touchStartY=null;
+
+});
+
+onkeydown=e=>{
+
+if(view.style.display!="block")
+return;
+
+if(e.key=="F1"){
+
+e.preventDefault();
+
+help.style.display=
+help.style.display=="block"?
+"none":
+"block";
+
+return;
+
+}
+
+if(attitudePicker.style.display=="block"&&e.key=="Escape"){
+
+e.preventDefault();
+
+closeAttitudePicker();
+
+return;
+
+}
+
+switch(e.key){
+
+case"ArrowUp":
+
+if(idx<curve.length-1)
+idx++;
+
+speed=curve[idx];
+
+break;
+
+case"ArrowDown":
+
+if(idx>0)
+idx--;
+
+speed=curve[idx];
+
+break;
+
+case" ":
+
+paused=!paused;
+
+break;
+
+case"ArrowLeft":
+
+ml=true;
+
+break;
+
+case"ArrowRight":
+
+mr=true;
+
+break;
+
+case"+":
+
+case"=":
+
+font+=2;
+
+document.querySelectorAll("p")
+.forEach(p=>p.style.fontSize=font+"px");
+
+break;
+
+case"-":
+
+font=Math.max(20,font-2);
+
+document.querySelectorAll("p")
+.forEach(p=>p.style.fontSize=font+"px");
+
+break;
+
+case"[":
+
+width=Math.max(40,width-2);
+
+break;
+
+case"]":
+
+width=Math.min(96,width+2);
+
+break;
+
+case"m":
+
+case"M":
+
+mirrorX*=-1;
+
+break;
+
+case"b":
+
+case"B":
+
+mirrorY*=-1;
+
+break;
+
+case"f":
+
+case"F":
+
+if(!document.fullscreenElement)
+document.documentElement.requestFullscreen();
+else
+document.exitFullscreen();
+
+break;
+
+case"e":
+
+case"E":
+
+if(e.ctrlKey){
+
+e.preventDefault();
+
+if(attitudePicker.style.display=="block")
+closeAttitudePicker();
+else
+openAttitudePickerForView();
+
+}
+
+break;
+
+case"Escape":
+
+view.style.display="none";
+editor.style.display="flex";
+
+break;
+
+}
+
+};
+
+onkeyup=e=>{
+
+if(e.key=="ArrowLeft")
+ml=false;
+
+if(e.key=="ArrowRight")
+mr=false;
+
+};
+
+</script>
+
+</body>
+</html>
