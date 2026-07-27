@@ -21,6 +21,7 @@ p{font-size:68px;line-height:1.35;font-weight:bold;margin:0 0 60px}
 #attitudePicker .grid{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
 #attitudePicker button{font-size:40px;padding:14px 20px;background:#222;color:#fff;border:1px solid #666;border-radius:10px;cursor:pointer}
 #attitudePicker button span{display:block;font-size:16px;margin-top:4px}
+.touchNav{display:none;position:fixed;bottom:24px;width:64px;height:64px;border-radius:50%;background:#0006;color:#fff;border:1px solid #fff6;font-size:28px;z-index:15;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:none}
 input,textarea,button,select{font-family:inherit}
 </style>
 
@@ -40,6 +41,9 @@ Segundo párrafo.</textarea>
 <div class="guide" id="guide"></div>
 
 <div id="hud"></div>
+
+<button id="rewindBtn" class="touchNav" style="left:20px">⏪</button>
+<button id="forwardBtn" class="touchNav" style="right:20px">⏩</button>
 
 <div id="content"></div>
 
@@ -593,7 +597,60 @@ if(help.style.display=="block"&&help.contains(target))return true;
 
 if(attitudePicker.style.display=="block"&&attitudePicker.contains(target))return true;
 
+if(rewindBtn.contains(target)||forwardBtn.contains(target))return true;
+
 return false;
+
+}
+
+if(isTouchDevice){
+
+rewindBtn.style.display="flex";
+forwardBtn.style.display="flex";
+
+rewindBtn.addEventListener("touchstart",e=>{
+
+e.preventDefault();
+
+e.stopPropagation();
+
+ml=true;
+
+},{passive:false});
+
+rewindBtn.addEventListener("touchend",e=>{
+
+e.preventDefault();
+
+e.stopPropagation();
+
+ml=false;
+
+});
+
+rewindBtn.addEventListener("touchcancel",()=>{ml=false;});
+
+forwardBtn.addEventListener("touchstart",e=>{
+
+e.preventDefault();
+
+e.stopPropagation();
+
+mr=true;
+
+},{passive:false});
+
+forwardBtn.addEventListener("touchend",e=>{
+
+e.preventDefault();
+
+e.stopPropagation();
+
+mr=false;
+
+});
+
+forwardBtn.addEventListener("touchcancel",()=>{mr=false;});
 
 }
 
